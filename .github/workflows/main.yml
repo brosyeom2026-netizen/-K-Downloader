@@ -1,4 +1,4 @@
-name: Build K Downloader APK
+name: Build Signed Release APK
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build-release-apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Unzip Project & Build Debug APK
+      - name: Unzip Project & Configure Release Signing
         run: |
           ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
           if [ -n "$ZIP_FILE" ]; then
@@ -35,17 +35,50 @@ jobs:
           PROJECT_FILE=$(find . -maxdepth 4 -name "settings.gradle.kts" | head -n 1)
           if [ -z "$PROJECT_FILE" ]; then
             echo "ERROR: settings.gradle.kts not found!"
-            ls -la
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$PROJECT_FILE")
-          echo "Building Android project in: $PROJECT_DIR"
+          echo "Found project in: $PROJECT_DIR"
           cd "$PROJECT_DIR"
-          gradle assembleDebug --no-daemon
 
-      - name: Upload APK Artifact
+          # Generate Release Keystore
+          keytool -genkeypair -v \
+            -keystore app/release.jks \
+            -alias kdownloader_key \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass KDownloader2026! \
+            -keypass KDownloader2026! \
+            -dname "CN=KDownloader, OU=Mobile, O=KDownloader, L=PhnomPenh, S=PP, C=KH"
+
+          # Append signingConfigs to app/build.gradle.kts
+          cat << 'EOF' >> app/build.gradle.kts
+
+          android {
+              signingConfigs {
+                  create("release") {
+                      storeFile = file("release.jks")
+                      storePassword = "KDownloader2026!"
+                      keyAlias = "kdownloader_key"
+                      keyPassword = "KDownloader2026!"
+                  }
+              }
+              buildTypes {
+                  getByName("release") {
+                      signingConfig = signingConfigs.getByName("release")
+                      isMinifyEnabled = false
+                  }
+              }
+          }
+          EOF
+
+          # Build Signed Release APK
+          gradle assembleRelease --no-daemon
+
+      - name: Upload Signed Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: K-Downloader-APK
-          path: "**/build/outputs/apk/debug/app-debug.apk"
+          name: K-Downloader-Signed-Release-APK
+          path: "**/build/outputs/apk/release/app-release.apk"
