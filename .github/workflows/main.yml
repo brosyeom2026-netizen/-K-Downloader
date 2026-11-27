@@ -1,4 +1,4 @@
-name: Build K Downloader v1.2 APK
+name: Build K Downloader v1.9 APK
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
 
       - name: Unzip Project & Build Signed APK
         run: |
-          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | sort -r | head -n 1)
           if [ -n "$ZIP_FILE" ]; then
             echo "Unzipping $ZIP_FILE..."
             unzip -o "$ZIP_FILE" -d ./extracted_project
@@ -50,7 +50,7 @@ jobs:
             -validity 10000 \
             -storepass KDownloader2026! \
             -keypass KDownloader2026! \
-            -dname "CN=KDownloader, OU=Mobile, O=KDownloader, L=PhnomPenh, S=PP, C=KH"
+            -dname "CN=KDownloader, OU=Mobile, O=YEOMBROS, L=PhnomPenh, S=PP, C=KH"
 
           cat << 'EOF' >> app/build.gradle.kts
 
@@ -80,8 +80,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      - name: Upload K Downloader v1.2 APK
+      - name: Upload K Downloader v1.9 APK
         uses: actions/upload-artifact@v4
         with:
-          name: K-Downloader-v1.2-APK
+          name: K-Downloader-v1.9-APK
           path: "**/build/outputs/apk/release/app-release.apk"
